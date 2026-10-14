@@ -554,7 +554,7 @@ mod tests {
         let client = Client::connect(&address, &logon("secret", &plugins), TIMEOUT).expect("in");
         client.close().expect("quit");
         let served = far.join().expect("thread").expect("logged in");
-        assert!(served.expect("served").is_empty());
+        assert_eq!(served.expect("served"), [] as [Event; 0]);
 
         let (address, far) = far_end(|stream| {
             Session::accept(stream, &Expecting::new("xmip", "secret", &Twice)).err()
