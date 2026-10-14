@@ -88,7 +88,7 @@ mod tests {
         assert!(verify("secret", &nonce, &scrambled));
         assert!(!verify("wrong", &nonce, &scrambled));
         assert!(!verify("secret", &[0; 20], &scrambled), "another nonce");
-        assert!(scramble("", &nonce).is_empty());
+        assert_eq!(scramble("", &nonce), [] as [u8; 0]);
         assert!(verify("", &nonce, &[]));
     }
 }
