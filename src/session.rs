@@ -573,7 +573,7 @@ mod tests {
             .expect("a certificate");
         let served = tls::server_config(
             signed.cert.pem().as_bytes(),
-            signed.key_pair.serialize_pem().as_bytes(),
+            signed.signing_key.serialize_pem().as_bytes(),
         )
         .expect("server config");
         let served = Arc::new(served);

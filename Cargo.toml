@@ -32,7 +32,7 @@ tls = { package = "xmip-core-library-tls", git = "https://github.com/IlleNilsson
 [dev-dependencies]
 # A self-signed certificate for the guarded login's test, as the TLS
 # library's own tests make one. Test-only.
-rcgen = "0.13"
+rcgen = "0.14"
 
 [lints.rust]
 unsafe_code = "forbid"
