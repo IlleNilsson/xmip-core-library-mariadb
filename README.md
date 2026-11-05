@@ -2,7 +2,7 @@
 
 The MariaDB client/server protocol for Xmip, one copy, both halves: what a
 client and a server send, read and written; a client that logs in, queries and
-executes in the text protocol; and the far end the tests and the Playground
+executes in the text protocol; and the far end the tests and the Essentials
 serve. What a row means to Xmip stays with the transport and the archive target.
 
 | Item | What it is |
@@ -32,7 +32,7 @@ Storage server, and what Storage reaches carries no other vendor's name. Until
 2026-10-14 all of it sat in the MariaDB transport, and the archive target
 reached it through that.
 
-`architecture.toml` carries the maturity.
+`architecture.xmip` carries the maturity.
 
 ## Toolchain
 

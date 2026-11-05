@@ -1,5 +1,5 @@
 //! The server's side of one connection: what a test puts at the far end,
-//! and what the Playground drives.
+//! and what the Essentials drives.
 //!
 //! Not a database. One session does the login for one client — a greeting
 //! with a fresh nonce in the plugin its [`crate::Verification`] speaks, a switch
