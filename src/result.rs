@@ -239,6 +239,7 @@ pub fn decode_row(payload: &[u8], count: usize) -> Result<Vec<Option<String>>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::assert_matches;
 
     #[test]
     fn every_reply_round_trips() {
@@ -271,10 +272,10 @@ mod tests {
             Reply::Data(vec![0, 2, b'4', b'1']),
             "an empty first value is not OK"
         );
-        assert!(matches!(
+        assert_matches!(
             decode_in_result_set(&[EOF_HEADER, 0, 0, 2, 0]).expect("eof"),
             Reply::Eof { .. }
-        ));
+        );
         assert_eq!(
             decode_reply(&[ERR_HEADER, 0x15, 0x04, b'n', b'o']).expect("no state"),
             Reply::Err {
