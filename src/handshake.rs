@@ -63,6 +63,9 @@ pub struct HandshakeV10 {
     pub connection_id: u32,
     pub nonce: Vec<u8>,
     pub capabilities: u32,
+    /// The server's status flags: `SERVER_STATUS_AUTOCOMMIT`, and
+    /// `SERVER_STATUS_NO_BACKSLASH_ESCAPES` where its `sql_mode` says so.
+    pub status: u16,
     pub plugin: String,
 }
 
@@ -90,7 +93,7 @@ pub fn encode_handshake(greeting: &HandshakeV10) -> Vec<u8> {
         .byte(0)
         .bytes(&capabilities[..2])
         .byte(UTF8MB4)
-        .u16_le(2) // SERVER_STATUS_AUTOCOMMIT
+        .u16_le(greeting.status)
         .bytes(&capabilities[2..])
         .byte(u8::try_from(NONCE_LENGTH + 1).unwrap_or(21))
         .bytes(&[0u8; 10])
@@ -117,7 +120,8 @@ pub fn decode_handshake(payload: &[u8]) -> Result<HandshakeV10> {
     let mut nonce = cursor.take(8)?.to_vec();
     cursor.skip(1)?;
     let lower = cursor.u16_le()?;
-    cursor.skip(3)?;
+    cursor.skip(1)?; // the character set
+    let status = cursor.u16_le()?;
     let upper = cursor.u16_le()?;
     let capabilities = u32::from(lower) | (u32::from(upper) << 16);
     let nonce_length = usize::from(cursor.byte()?);
@@ -137,6 +141,7 @@ pub fn decode_handshake(payload: &[u8]) -> Result<HandshakeV10> {
         connection_id,
         nonce,
         capabilities,
+        status,
         plugin,
     })
 }
@@ -260,6 +265,7 @@ mod tests {
             connection_id: 42,
             nonce: (b'a'..=b't').collect(),
             capabilities: CAPABILITIES | CLIENT_SSL,
+            status: 0x0202,
             plugin: NATIVE_PASSWORD.into(),
         };
         let bytes = encode_handshake(&greeting);
