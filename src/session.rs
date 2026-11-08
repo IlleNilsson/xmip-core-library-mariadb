@@ -118,6 +118,7 @@ impl Session {
             connection_id: CONNECTIONS.fetch_add(1, Ordering::Relaxed),
             nonce: nonce.clone(),
             capabilities: CAPABILITIES | offered,
+            status: AUTOCOMMIT,
             plugin: expecting.greeting().to_string(),
         };
         let mut sequence = 0;

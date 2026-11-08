@@ -22,6 +22,10 @@ use crate::{Result, classify, guard_error, protocol_error};
 /// The port a server listens on unless its address names another.
 pub const PORT: u16 = 3306;
 
+/// `SERVER_STATUS_NO_BACKSLASH_ESCAPES`: the session's `sql_mode` holds
+/// `NO_BACKSLASH_ESCAPES`, so a backslash in a literal is itself.
+pub const NO_BACKSLASH_ESCAPES: u16 = 0x0200;
+
 /// What a query came back with.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct QueryResult {
@@ -67,6 +71,9 @@ pub struct Client {
     guarded: bool,
     server_version: String,
     connection_id: u32,
+    /// The status flags the server last said: in its greeting, then in
+    /// every OK packet.
+    status: u16,
 }
 
 impl Client {
@@ -87,6 +94,7 @@ impl Client {
             guarded: false,
             server_version: String::new(),
             connection_id: 0,
+            status: 0,
         };
         client.login(server, logon)?;
         Ok(client)
@@ -103,6 +111,7 @@ impl Client {
         }
         self.server_version = greeting.server_version;
         self.connection_id = greeting.connection_id;
+        self.status = greeting.status;
         let mut sequence = 1;
         let mut capabilities = CAPABILITIES;
         if let Some(guard) = logon.guard {
@@ -131,7 +140,10 @@ impl Client {
             let (seen, payload) = self.read("the login's answer")?;
             sequence = seen.wrapping_add(1);
             match decode_reply(&payload)? {
-                Reply::Ok { .. } => return Ok(()),
+                Reply::Ok { status, .. } => {
+                    self.status = status;
+                    return Ok(());
+                }
                 error @ Reply::Err { .. } => return Err(refused(error)),
                 Reply::Data(bytes) if bytes.first() == Some(&EOF_HEADER) => {
                     let (named, fresh) = decode_auth_switch(&bytes)?;
@@ -199,6 +211,19 @@ impl Client {
         self.connection_id
     }
 
+    /// The SQL dialect the server reads now: [`sql::MARIADB`], or
+    /// [`sql::MARIADB_NO_BACKSLASH_ESCAPES`] where the status flags it last
+    /// said carry [`NO_BACKSLASH_ESCAPES`]. A literal is quoted by it, so a
+    /// backslash is written as the session's `sql_mode` reads it.
+    #[must_use]
+    pub const fn dialect(&self) -> &'static sql::Dialect {
+        if self.status & NO_BACKSLASH_ESCAPES == 0 {
+            &sql::MARIADB
+        } else {
+            &sql::MARIADB_NO_BACKSLASH_ESCAPES
+        }
+    }
+
     /// Whether the connection is under TLS.
     #[must_use]
     pub const fn guarded(&self) -> bool {
@@ -224,7 +249,12 @@ impl Client {
         )?;
         let (_, payload) = self.read("the query's answer")?;
         let count = match decode_reply(&payload)? {
-            Reply::Ok { affected_rows, .. } => {
+            Reply::Ok {
+                affected_rows,
+                status,
+                ..
+            } => {
+                self.status = status;
                 return Ok(QueryResult {
                     affected_rows,
                     ..QueryResult::default()
@@ -342,6 +372,74 @@ pub fn sql_error(code: u16, state: &str, message: &str) -> net::NetError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::handshake::{HandshakeV10, encode_handshake};
+    use crate::result::encode_reply;
+
+    const AUTOCOMMIT: u16 = 2;
+
+    /// A far end whose greeting and login OK carry `NO_BACKSLASH_ESCAPES`,
+    /// and whose OK to the one statement after clears it.
+    fn far_end(listener: &std::net::TcpListener) {
+        let (stream, _) = listener.accept().expect("accepted");
+        let mut reader = BufReader::new(stream.try_clone().expect("cloned"));
+        let mut writer = stream;
+        let mut send = |sequence: u8, payload: &[u8]| {
+            let framed = frame(&mut { sequence }, payload);
+            writer.write_all(&framed).expect("written");
+        };
+        let ok = |status| {
+            encode_reply(&Reply::Ok {
+                affected_rows: 0,
+                last_insert_id: 0,
+                status,
+                warnings: 0,
+            })
+        };
+        let greeting = HandshakeV10 {
+            server_version: "11.8.0".into(),
+            connection_id: 1,
+            nonce: vec![b'n'; 20],
+            capabilities: CAPABILITIES,
+            status: AUTOCOMMIT | NO_BACKSLASH_ESCAPES,
+            plugin: crate::NATIVE_PASSWORD.into(),
+        };
+        send(0, &encode_handshake(&greeting));
+        let (seen, _) = read_packet(&mut reader).expect("read").expect("login");
+        send(seen.wrapping_add(1), &ok(AUTOCOMMIT | NO_BACKSLASH_ESCAPES));
+        read_packet(&mut reader).expect("read").expect("statement");
+        send(1, &ok(AUTOCOMMIT));
+        read_packet(&mut reader).expect("read").expect("quit");
+    }
+
+    #[test]
+    fn the_dialect_follows_the_status_the_greeting_and_each_ok_carry() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bound");
+        let address = listener.local_addr().expect("address").to_string();
+        let serving = std::thread::spawn(move || far_end(&listener));
+        let plugins: [&dyn Authentication; 1] = [&crate::NativePassword];
+        let logon = Logon {
+            user: "xmip",
+            password: "",
+            database: "orders",
+            plugins: &plugins,
+            guard: None,
+        };
+        let mut client =
+            Client::connect(&address, &logon, Some(Duration::from_secs(5))).expect("logged in");
+        assert_eq!(
+            client.dialect().quote_text("a\\'"),
+            "'a\\'''",
+            "NO_BACKSLASH_ESCAPES: a backslash is itself"
+        );
+        client.execute("SET sql_mode = ''").expect("set");
+        assert_eq!(
+            client.dialect().quote_text("a\\'"),
+            "'a\\\\'''",
+            "the default mode: a backslash escaped"
+        );
+        client.close().expect("quit");
+        serving.join().expect("the far end");
+    }
 
     #[test]
     fn an_error_is_judged_by_its_code_and_class() {
