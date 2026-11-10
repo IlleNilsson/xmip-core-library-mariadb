@@ -187,11 +187,8 @@ impl Client {
             .as_deref()
             .unwrap_or_else(|| net::authority::host_of(server));
         let socket = clone(&self.socket)?;
-        let guarded = match &guard.trust {
-            Some(config) => tls::client_with(name, socket, Arc::clone(config)),
-            None => tls::client(name, socket),
-        }
-        .map_err(|e| guard_error(&e))?;
+        let guarded = tls::client_trusting(name, socket, guard.trust.as_ref())
+            .map_err(|e| guard_error(&e))?;
         let halves = tls::duplex::split(guarded).map_err(|e| guard_error(&e))?;
         self.reader = BufReader::new(Box::new(halves.reading));
         self.writer = Box::new(halves.writing);
