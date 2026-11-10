@@ -32,7 +32,7 @@ Storage server, and what Storage reaches carries no other vendor's name. Until
 2026-10-14 all of it sat in the MariaDB transport, and the archive target
 reached it through that.
 
-`architecture.xmip` carries the maturity.
+`architecture.toml` carries the maturity.
 
 ## Toolchain
 
