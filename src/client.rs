@@ -4,7 +4,6 @@
 
 use std::io::{BufReader, Read, Write};
 use std::net::TcpStream;
-use std::sync::Arc;
 use std::time::Duration;
 
 use crate::authentication::{AUTH_MORE_DATA, Authentication, Step};
@@ -36,17 +35,6 @@ pub struct QueryResult {
     pub affected_rows: u64,
 }
 
-/// How a login is guarded: the trust store the server's certificate is
-/// checked against, and the name it is checked for.
-#[derive(Clone, Debug, Default)]
-pub struct Guard {
-    /// The trust a caller holds — a Party's own authority, a test's; the
-    /// operating system's store where `None`.
-    pub trust: Option<Arc<tls::ClientConfig>>,
-    /// The name the certificate must carry; the address's host where `None`.
-    pub name: Option<String>,
-}
-
 /// Who logs in, to what, and how.
 #[derive(Clone, Copy)]
 pub struct Logon<'a> {
@@ -57,8 +45,9 @@ pub struct Logon<'a> {
     /// The plugins this client speaks: the one the greeting names where it
     /// is among them, the first otherwise, and any a switch names.
     pub plugins: &'a [&'a dyn Authentication],
-    /// TLS before the login; the clear where `None`.
-    pub guard: Option<&'a Guard>,
+    /// TLS before the login, checking the server as these settings say;
+    /// the clear where `None`.
+    pub guard: Option<&'a tls::ClientSettings>,
 }
 
 /// One logged-in connection, kept between statements while the server
@@ -181,13 +170,10 @@ impl Client {
     }
 
     /// The connection handed to TLS in place, after the SSL request.
-    fn guard(&mut self, server: &str, guard: &Guard) -> Result<()> {
-        let name = guard
-            .name
-            .as_deref()
-            .unwrap_or_else(|| net::authority::host_of(server));
+    fn guard(&mut self, server: &str, settings: &tls::ClientSettings) -> Result<()> {
         let socket = clone(&self.socket)?;
-        let guarded = tls::client_trusting(name, socket, guard.trust.as_ref())
+        let guarded = settings
+            .client(net::authority::host_of(server), socket)
             .map_err(|e| guard_error(&e))?;
         let halves = tls::duplex::split(guarded).map_err(|e| guard_error(&e))?;
         self.reader = BufReader::new(Box::new(halves.reading));

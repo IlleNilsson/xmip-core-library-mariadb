@@ -395,7 +395,7 @@ mod tests {
 
     use super::*;
     use crate::authentication::{Authentication, Step, Verification};
-    use crate::client::{Client, Guard, Logon};
+    use crate::client::{Client, Logon};
     use crate::native_password::{NATIVE_PASSWORD, NativePassword};
 
     const TIMEOUT: Option<Duration> = Some(Duration::from_secs(5));
@@ -579,10 +579,7 @@ mod tests {
         .expect("server config");
         let served = Arc::new(served);
         let trust = tls::trusting(signed.cert.pem().as_bytes()).expect("trust");
-        let guard = Guard {
-            trust: Some(Arc::new(trust)),
-            name: Some("localhost".into()),
-        };
+        let guard = tls::ClientSettings::trusting(Arc::new(trust)).named("localhost");
         let (address, far) = far_end(move |stream| {
             let expecting = Expecting::new("xmip", "secret", &NativePassword).guarded(served);
             let session = Session::accept(stream, &expecting).expect("login");

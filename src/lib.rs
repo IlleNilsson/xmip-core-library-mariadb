@@ -22,7 +22,9 @@
 //! and whatever MySQL changes stays there.
 //!
 //! **TLS is the estate's** (`xmip-core-library-tls`, ADR-0033). Asked for
-//! with a [`Guard`], the client sends the SSL request after the greeting
+//! with the estate's `tls::ClientSettings` — the trust store the server's
+//! certificate is checked against and the name it is checked for — on a
+//! [`Logon`], the client sends the SSL request after the greeting
 //! and the connection is upgraded in place before the login; a server that
 //! offers no TLS is refused rather than spoken to in the clear. A far end
 //! given a server configuration offers TLS and upgrades a client that asks.
@@ -46,7 +48,7 @@ pub mod session;
 pub mod wire;
 
 pub use authentication::{Authentication, Conversation, Step, Verification};
-pub use client::{Client, Guard, Logon, QueryResult, sql_error};
+pub use client::{Client, Logon, QueryResult, sql_error};
 pub use expecting::Expecting;
 pub use native_password::{NATIVE_PASSWORD, NativePassword};
 pub use session::{Answer, Event, Insert, Session};
