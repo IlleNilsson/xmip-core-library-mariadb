@@ -2,7 +2,7 @@
 
 The MariaDB client/server protocol for Xmip, one copy, both halves: what a
 client and a server send, read and written; a client that logs in, queries and
-executes in the text protocol; and the far end the tests and the Essentials
+executes in the text protocol; and the far end the tests and the System Tests
 serve. What a row means to Xmip stays with the transport and the archive target.
 
 | Item | What it is |

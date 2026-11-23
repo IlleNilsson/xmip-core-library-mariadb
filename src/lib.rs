@@ -9,7 +9,7 @@
 //! replies and the text result set (`result.rs`), `COM_QUERY` and
 //! `COM_QUIT`. [`Client`] is the near end: it logs in, queries and executes
 //! in the text protocol, and closes; [`Session`] is the far end a test or
-//! the Essentials serves, not a database.
+//! the System Tests serve, not a database.
 //!
 //! **The login is a plugin's.** A client is handed the plugins it speaks
 //! ([`Authentication`]) and a far end the one it checks ([`Verification`]);
