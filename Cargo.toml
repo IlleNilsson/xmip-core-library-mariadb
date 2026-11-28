@@ -14,17 +14,17 @@ path = "src/lib.rs"
 # The estate's encoding primitives: the byte cursor and writer the fields
 # are read and written over, SHA-1 for the native password, the random
 # nonce a far end greets with, and the constant-time comparison.
-codec = { package = "xmip-core-library-codec", git = "https://github.com/IlleNilsson/xmip-core-library-codec", branch = "main" }
+codec = { workspace = true }
 # The connection opened inside one deadline (`net::connect`), the ceiling a
 # payload's packets are joined under (`net::MAX_BODY`), and the error a
 # refusal travels in, a connection's keeping its kind.
-net = { package = "xmip-core-library-net", git = "https://github.com/IlleNilsson/xmip-core-library-net", branch = "main" }
+net = { workspace = true }
 # SQL: the MariaDB dialect a far end takes an INSERT apart in, and a
 # statement's verb.
-sql = { package = "xmip-core-library-sql", git = "https://github.com/IlleNilsson/xmip-core-library-sql", branch = "main" }
+sql = { workspace = true }
 # The estate's TLS, which a login is upgraded to in place after the
 # client's SSL request (ADR-0033).
-tls = { package = "xmip-core-library-tls", git = "https://github.com/IlleNilsson/xmip-core-library-tls", branch = "main" }
+tls = { workspace = true }
 
 [dev-dependencies]
 # A self-signed certificate for the guarded login's test, as the TLS
